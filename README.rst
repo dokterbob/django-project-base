@@ -27,5 +27,5 @@ http://www.kernel.org/pub/software/scm/git/docs/howto/using-merge-subtree.html )
 
 Updating your project from the base
 -----------------------------------
-   git pull django-project-base master
+   git pull -s subtree django-project-base master
 
