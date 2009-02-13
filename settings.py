@@ -69,7 +69,7 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'djangologging.middleware.LoggingMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
 ROOT_URLCONF = 'urls'
@@ -82,11 +82,6 @@ TEMPLATE_DIRS = (
 from socket import gethostname, gethostbyname
 INTERNAL_IPS = ( '127.0.0.1', 
                  gethostbyname(gethostname()),)
-
-# djangologging
-LOGGING_OUTPUT_ENABLED = True
-LOGGING_LOG_SQL = False
-LOGGING_INTERCEPT_REDIRECTS = False
 
 # Log debug messages to standard output
 if DEBUG:
@@ -102,5 +97,6 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.admin',
     'django_extensions',
+    'debug_toolbar',
 )
 

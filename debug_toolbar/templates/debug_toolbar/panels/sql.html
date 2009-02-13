@@ -1,0 +1,27 @@
+<h3>SQL Queries</h3>
+<table>
+	<thead>
+		<tr>
+			<th>Time&nbsp;(ms)</th>
+			<th>Action</th>
+			<th>Query</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for query in queries %}
+			<tr class="{% cycle 'odd' 'even' %}">
+				<td>{{ query.time|floatformat:"2" }}</td>
+				<td>
+				{% if query.params %}
+					<a class="remoteCall" href="/__debug__/sql_select/?sql={{ query.raw_sql|urlencode }}&params={{ query.params|urlencode }}&time={{ query.time|floatformat:"2"|urlencode }}&hash={{ query.hash }}">SELECT</a>
+					<a class="remoteCall" href="/__debug__/sql_explain/?sql={{ query.raw_sql|urlencode }}&params={{ query.params|urlencode }}&time={{ query.time|floatformat:"2"|urlencode }}&hash={{ query.hash }}">EXPLAIN</a>
+					{% if is_mysql %}
+						<a class="remoteCall" href="/__debug__/sql_profile/?sql={{ query.raw_sql|urlencode }}&params={{ query.params|urlencode }}&time={{ query.time|floatformat:"2"|urlencode }}&hash={{ query.hash }}">PROFILE</a>
+					{% endif %}
+				{% endif %}
+				</td>
+				<td class="syntax">{{ query.sql|safe }}</td>
+			</tr>
+		{% endfor %}
+	</tbody>
+</table>
