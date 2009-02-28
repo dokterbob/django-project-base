@@ -24,17 +24,6 @@ else:
     DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
     DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
-# Local time zone for this installation. Choices can be found here:
-# http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
-# although not all choices may be available on all operating systems.
-# If running in a Windows environment this must be set to the same as your
-# system time zone.
-TIME_ZONE = 'Europe/Amsterdam'
-
-# Language code for this installation. All choices can be found here:
-# http://www.i18nguy.com/unicode/language-identifiers.html
-LANGUAGE_CODE = 'nl-nl'
-
 SITE_ID = 1
 
 # If you set this to False, Django will make some optimizations so as not
@@ -55,8 +44,6 @@ MEDIA_URL = '/media/'
 # Examples: "http://foo.com/media/", "/media/".
 ADMIN_MEDIA_PREFIX = '/admin/media/'
 
-# Make this unique, and don't share it with anybody.
-SECRET_KEY = '__0(6(#-mf*928p9n7_xhcn09yxshtuf1y5b75zizisar#0@jh'
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -78,11 +65,6 @@ TEMPLATE_DIRS = (
     path.join(PROJECT_ROOT, 'templates')
 )
 
-# Consider ourself as internal IP
-from socket import gethostname, gethostbyname
-INTERNAL_IPS = ( '127.0.0.1', 
-                 gethostbyname(gethostname()),)
-
 # Log debug messages to standard output
 if DEBUG:
     import logging
@@ -90,13 +72,9 @@ if DEBUG:
                         format='%(asctime)s %(levelname)-8s %(message)s',
                         datefmt='[%d/%b/%Y %H:%M:%S]')
 
-INSTALLED_APPS = (
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.sites',
-    'django.contrib.admin',
-    'django_extensions',
-    'debug_toolbar',
-)
+try:
+    from settings_local import *
+except ImportError:
+    pass
+
 
