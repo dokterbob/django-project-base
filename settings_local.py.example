@@ -3,9 +3,6 @@ from socket import gethostname, gethostbyname
 INTERNAL_IPS = ( '127.0.0.1', 
                  gethostbyname(gethostname()),)
 
-# Make this unique, and don't share it with anybody.
-SECRET_KEY = '__0(6(#-mf*928p9n7_xhcn09yxshtuf1y5b75zizisar#0@jh'
-
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # although not all choices may be available on all operating systems.
