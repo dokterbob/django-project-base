@@ -1,5 +1,3 @@
-# Django settings for architectural project.
-
 from os import path
 PROJECT_ROOT = path.dirname(__file__)
 
@@ -15,14 +13,6 @@ MANAGERS = ADMINS
 if DEBUG:
     DATABASE_ENGINE = 'sqlite3'           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
     DATABASE_NAME = path.join(PROJECT_ROOT, 'database.sqlite')             # Or path to database file if using sqlite3.
-else:
-    assert False, 'Database not configured!'
-    DATABASE_ENGINE = 'mysql'
-    DATABASE_NAME = ''
-    DATABASE_USER = ''             # Not used with sqlite3.
-    DATABASE_PASSWORD = ''         # Not used with sqlite3.
-    DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
-    DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
 SITE_ID = 1
 
@@ -71,10 +61,13 @@ if DEBUG:
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)-8s %(message)s',
                         datefmt='[%d/%b/%Y %H:%M:%S]')
+    
+    DEBUG_TOOLBAR_CONFIG = {
+        'INTERCEPT_REDIRECTS' : False,
+    }
 
 try:
     from settings_local import *
 except ImportError:
     pass
-
 

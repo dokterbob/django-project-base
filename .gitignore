@@ -5,4 +5,4 @@
 *.sw?
 /static/media
 portnumber
-settings_local
+settings_local.py
