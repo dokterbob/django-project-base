@@ -1,7 +1,10 @@
 # -*- coding: UTF-8 -*-
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User as UserAlias
+
+def default_func():
+    return "yays"
 
 # An empty case.
 class Other1(models.Model): pass
@@ -9,6 +12,8 @@ class Other1(models.Model): pass
 # Nastiness.
 class HorribleModel(models.Model):
     "A model to test the edge cases of model parsing"
+    
+    ZERO, ONE = range(2)
     
     # First, some nice fields
     name = models.CharField(max_length=255)
@@ -20,10 +25,14 @@ class HorribleModel(models.Model):
     o2 = models.ForeignKey('Other2')
     
     # Now to something outside
-    user = models.ForeignKey(User, related_name="horribles")
+    user = models.ForeignKey(UserAlias, related_name="horribles")
     
     # Unicode!
     code = models.CharField(max_length=25, default="↑↑↓↓←→←→BA")
+    
+    # Odd defaults!
+    class_attr = models.IntegerField(default=ZERO)
+    func = models.CharField(max_length=25, default=default_func)
     
     # Time to get nasty. Define a non-field choices, and use it
     choices = [('hello', '1'), ('world', '2')]

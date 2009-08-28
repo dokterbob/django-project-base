@@ -1,17 +1,22 @@
+"""
+Main migration logic.
+"""
 
 import datetime
 import os
 import sys
 import traceback
 import inspect
+
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
-from models import MigrationHistory
-from south.db import db
-from south.orm import FakeORM
 
+from south.models import MigrationHistory
+from south.db import db
+from south.orm import LazyFakeORM, FakeORM
+from south.signals import *
 
 def get_app(app):
     """
@@ -59,11 +64,18 @@ def get_migration_names(app):
     """
     Returns a list of migration file names for the given app.
     """
-    return sorted([
-        filename[:-3]
+    if getattr(settings, "SOUTH_USE_PYC", False):
+        allowed_extensions = (".pyc", ".py")
+        ignored_files = ("__init__.pyc", "__init__.py")
+    else:
+        allowed_extensions = (".py",)
+        ignored_files = ("__init__.py",)
+    
+    return sorted(set([
+        os.path.splitext(filename)[0]
         for filename in os.listdir(os.path.dirname(app.__file__))
-        if filename.endswith(".py") and filename != "__init__.py" and not filename.startswith(".")
-    ])
+        if os.path.splitext(filename)[1] in allowed_extensions and filename not in ignored_files and not filename.startswith(".")
+    ]))
 
 
 def get_migration_classes(app):
@@ -81,8 +93,9 @@ def get_migration(app, name):
     try:
         module = __import__(app.__name__ + "." + name, '', '', ['Migration'])
         migclass = module.Migration
-        migclass.orm = FakeORM(migclass, get_app_name(app))
+        migclass.orm = LazyFakeORM(migclass, get_app_name(app))
         module._ = lambda x: x  # Fake i18n
+        module.datetime = datetime
         return migclass
     except ImportError:
         print " ! Migration %s:%s probably doesn't exist." % (get_app_name(app), name)
@@ -106,9 +119,11 @@ def dependency_tree():
     # Annotate tree with 'backwards edges'
     for app, classes in tree.items():
         for name, cls in classes.items():
-            cls.needs = []
-            if not hasattr(cls, "needed_by"):
-                cls.needed_by = []
+            if not hasattr(cls, "_dependency_parents"):
+                cls._dependency_parents = []
+            if not hasattr(cls, "_dependency_children"):
+                cls._dependency_children = []
+            # Get forwards dependencies
             if hasattr(cls, "depends_on"):
                 for dapp, dname in cls.depends_on:
                     dapp = get_app(dapp)
@@ -127,10 +142,33 @@ def dependency_tree():
                             get_app_name(dapp),
                         )
                         sys.exit(1)
-                    cls.needs.append((dapp, dname))
-                    if not hasattr(tree[dapp][dname], "needed_by"):
-                        tree[dapp][dname].needed_by = []
-                    tree[dapp][dname].needed_by.append((app, name))
+                    cls._dependency_parents.append((dapp, dname))
+                    if not hasattr(tree[dapp][dname], "_dependency_children"):
+                        tree[dapp][dname]._dependency_children = []
+                    tree[dapp][dname]._dependency_children.append((app, name))
+            # Get backwards dependencies
+            if hasattr(cls, "needed_by"):
+                for dapp, dname in cls.needed_by:
+                    dapp = get_app(dapp)
+                    if dapp not in tree:
+                        print "Migration %s in app %s claims to be needed by unmigrated app %s." % (
+                            name,
+                            get_app_name(app),
+                            dapp,
+                        )
+                        sys.exit(1)
+                    if dname not in tree[dapp]:
+                        print "Migration %s in app %s claims to be needed by nonexistent migration %s in app %s." % (
+                            name,
+                            get_app_name(app),
+                            dname,
+                            get_app_name(dapp),
+                        )
+                        sys.exit(1)
+                    cls._dependency_children.append((dapp, dname))
+                    if not hasattr(tree[dapp][dname], "_dependency_parents"):
+                        tree[dapp][dname]._dependency_parents = []
+                    tree[dapp][dname]._dependency_parents.append((app, name))
     
     # Sanity check whole tree
     for app, classes in tree.items():
@@ -163,7 +201,7 @@ def dependencies(tree, app, name, trace=[]):
     # Get the dependencies of a migration
     deps = []
     migration = tree[app][name]
-    for dapp, dname in migration.needs:
+    for dapp, dname in migration._dependency_parents:
         deps.extend(
             dependencies(tree, dapp, dname, trace+[(app,name)])
         )
@@ -190,7 +228,7 @@ def needed_before_forwards(tree, app, name, sameapp=True):
         for aname in app_migrations[:app_migrations.index(name)]:
             needed += needed_before_forwards(tree, app, aname, False)
             needed += [(app, aname)]
-    for dapp, dname in tree[app][name].needs:
+    for dapp, dname in tree[app][name]._dependency_parents:
         needed += needed_before_forwards(tree, dapp, dname)
         needed += [(dapp, dname)]
     return remove_duplicates(needed)
@@ -208,29 +246,49 @@ def needed_before_backwards(tree, app, name, sameapp=True):
         for aname in reversed(app_migrations[app_migrations.index(name)+1:]):
             needed += needed_before_backwards(tree, app, aname, False)
             needed += [(app, aname)]
-    for dapp, dname in tree[app][name].needed_by:
+    for dapp, dname in tree[app][name]._dependency_children:
         needed += needed_before_backwards(tree, dapp, dname)
         needed += [(dapp, dname)]
     return remove_duplicates(needed)
 
 
-def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry_run=False, silent=False):
+def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry_run=False, verbosity=0):
     """
     Runs the specified migrations forwards/backwards, in order.
     """
     for migration in migrations:
         app_name = get_app_name(app)
-        if not silent:
+        if verbosity:
             print toprint % (app_name, migration)
+        
+        # Get migration class
         klass = get_migration(app, migration)
-
-        if fake:
-            if not silent:
-                print "   (faked)"
+        # Find its predecessor, and attach the ORM from that as prev_orm.
+        all_names = get_migration_names(app)
+        idx = all_names.index(migration)
+        # First migration? The 'previous ORM' is empty.
+        if idx == 0:
+            klass.prev_orm = FakeORM(None, app)
         else:
-            
+            klass.prev_orm = get_migration(app, all_names[idx-1]).orm
+        
+        # If this is a 'fake' migration, do nothing.
+        if fake:
+            if verbosity:
+                print "   (faked)"
+        
+        # OK, we should probably do something then.
+        else:
             runfunc = getattr(klass(), torun)
             args = inspect.getargspec(runfunc)
+            
+            # Get the correct ORM.
+            if torun == "forwards":
+                orm = klass.orm
+            else:
+                orm = klass.prev_orm
+            
+            db.current_orm = orm
             
             # If the database doesn't support running DDL inside a transaction
             # *cough*MySQL*cough* then do a dry run first.
@@ -239,11 +297,13 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                     db.dry_run = True
                     db.debug, old_debug = False, db.debug
                     pending_creates = db.get_pending_creates()
+                    db.start_transaction()
                     try:
                         if len(args[0]) == 1:  # They don't want an ORM param
                             runfunc()
                         else:
-                            runfunc(klass.orm)
+                            runfunc(orm)
+                            db.rollback_transactions_dry_run()
                     except:
                         traceback.print_exc()
                         print " ! Error found during dry run of migration! Aborting."
@@ -263,7 +323,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                 if len(args[0]) == 1:  # They don't want an ORM param
                     runfunc()
                 else:
-                    runfunc(klass.orm)
+                    runfunc(orm)
                 db.execute_deferred_sql()
             except:
                 if db.has_ddl_transactions:
@@ -283,7 +343,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                         if len(args[0]) == 1:
                             klass().backwards()
                         else:
-                            klass().backwards(klass.orm)
+                            klass().backwards(klass.prev_orm)
                     print
                     print " ! The South developers regret this has happened, and would"
                     print " ! like to gently persuade you to consider a slightly"
@@ -296,9 +356,14 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
         if not db_dry_run:
             # Record us as having done this
             recorder(app_name, migration)
+            if not fake:
+                # Send a signal saying it ran
+                # Actually, don't - we're implementing this properly in 0.7
+                #ran_migration.send(None, app=app_name, migration=migration, method=torun)
+                pass
 
 
-def run_forwards(app, migrations, fake=False, db_dry_run=False, silent=False):
+def run_forwards(app, migrations, fake=False, db_dry_run=False, verbosity=0):
     """
     Runs the specified migrations forwards, in order.
     """
@@ -317,11 +382,11 @@ def run_forwards(app, migrations, fake=False, db_dry_run=False, silent=False):
         migrations = migrations,
         fake = fake,
         db_dry_run = db_dry_run,
-        silent = silent,
+        verbosity = verbosity,
     )
 
 
-def run_backwards(app, migrations, ignore=[], fake=False, db_dry_run=False, silent=False):
+def run_backwards(app, migrations, ignore=[], fake=False, db_dry_run=False, verbosity=0):
     """
     Runs the specified migrations backwards, in order, skipping those
     migrations in 'ignore'.
@@ -340,7 +405,7 @@ def run_backwards(app, migrations, ignore=[], fake=False, db_dry_run=False, sile
         migrations = [x for x in migrations if x not in ignore],
         fake = fake,
         db_dry_run = db_dry_run,
-        silent = silent,
+        verbosity = verbosity,
     )
 
 
@@ -352,74 +417,63 @@ def left_side_of(x, y):
     return list(y)[:len(x)] == list(x)
 
 
-def forwards_problems(tree, forwards, done, silent=False):
+def forwards_problems(tree, forwards, done, verbosity=0):
     problems = []
     for app, name in forwards:
         if (app, name) not in done:
             for dapp, dname in needed_before_backwards(tree, app, name):
                 if (dapp, dname) in done:
-                    if not silent:
-                        print " ! Migration (%s, %s) should not have been applied before (%s, %s) but was." % (get_app_name(dapp), dname, get_app_name(app), name)
+                    print " ! Migration (%s, %s) should not have been applied before (%s, %s) but was." % (get_app_name(dapp), dname, get_app_name(app), name)
                     problems.append(((app, name), (dapp, dname)))
     return problems
 
 
 
-def backwards_problems(tree, backwards, done, silent=False):
+def backwards_problems(tree, backwards, done, verbosity=0):
     problems = []
     for app, name in backwards:
         if (app, name) in done:
             for dapp, dname in needed_before_forwards(tree, app, name):
                 if (dapp, dname) not in done:
-                    if not silent:
-                        print " ! Migration (%s, %s) should have been applied before (%s, %s) but wasn't." % (get_app_name(dapp), dname, get_app_name(app), name)
+                    print " ! Migration (%s, %s) should have been applied before (%s, %s) but wasn't." % (get_app_name(dapp), dname, get_app_name(app), name)
                     problems.append(((app, name), (dapp, dname)))
     return problems
 
 
-def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, silent=False, load_inital_data=False, skip=False):
+def migrate_app(app, tree, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
     
     app_name = get_app_name(app)
+    verbosity = int(verbosity)
+    db.debug = (verbosity > 1)
     
-    db.debug = not silent
-    
-    # If any of their app names in the DB contain a ., they're 0.2 or below, so migrate em
-    longuns = MigrationHistory.objects.filter(app_name__contains=".")
-    if longuns:
-        for mh in longuns:
-            mh.app_name = short_from_long(mh.app_name)
-            mh.save()
-        if not silent:
-            print "- Updated your South 0.2 database."
+    # Fire off the pre-migrate signal
+    pre_migrate.send(None, app=app_name)
     
     # Find out what delightful migrations we have
-    tree = dependency_tree()
     migrations = get_migration_names(app)
     
     # If there aren't any, quit quizically
     if not migrations:
-        if not silent:
-            print "? You have no migrations for the '%s' app. You might want some." % app_name
+        print "? You have no migrations for the '%s' app. You might want some." % app_name
         return
     
     if target_name not in migrations and target_name not in ["zero", None]:
         matches = [x for x in migrations if x.startswith(target_name)]
         if len(matches) == 1:
             target = migrations.index(matches[0]) + 1
-            if not silent:
+            if verbosity:
                 print " - Soft matched migration %s to %s." % (
                     target_name,
                     matches[0]
                 )
             target_name = matches[0]
         elif len(matches) > 1:
-            if not silent:
+            if verbosity:
                 print " - Prefix %s matches more than one migration:" % target_name
                 print "     " + "\n     ".join(matches)
             return
         else:
-            if not silent:
-                print " ! '%s' is not a migration." % target_name
+            print " ! '%s' is not a migration." % target_name
             return
     
     # Check there's no strange ones in the database
@@ -432,15 +486,14 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
             pass
     
     if ghost_migrations:
-        if not silent:
-            print " ! These migrations are in the database but not on disk:"
-            print "   - " + "\n   - ".join(["%s: %s" % (x.app_name, x.migration) for x in ghost_migrations])
-            print " ! I'm not trusting myself; fix this yourself by fiddling"
-            print " ! with the south_migrationhistory table."
+        print " ! These migrations are in the database but not on disk:"
+        print "   - " + "\n   - ".join(["%s: %s" % (x.app_name, x.migration) for x in ghost_migrations])
+        print " ! I'm not trusting myself; fix this yourself by fiddling"
+        print " ! with the south_migrationhistory table."
         return
     
     # Say what we're doing
-    if not silent:
+    if verbosity:
         print "Running migrations for %s:" % app_name
     
     # Get the forwards and reverse dependencies for this target
@@ -491,7 +544,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     # If the remaining migrations are strictly a right segment of the forwards
     # trace, we just need to go forwards to our target (and check for badness)
     else:
-        problems = forwards_problems(tree, forwards, current_migrations, silent=silent)
+        problems = forwards_problems(tree, forwards, current_migrations, verbosity=verbosity)
         if problems:
             bad = True
         direction = 1
@@ -505,25 +558,24 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
         # If what's missing is a strict left segment of backwards (i.e.
         # all the higher migrations) then we need to go backwards
         else:
-            problems = backwards_problems(tree, backwards, current_migrations, silent=silent)
+            problems = backwards_problems(tree, backwards, current_migrations, verbosity=verbosity)
             if problems:
                 bad = True
             direction = -1
     
     if bad and resolve_mode not in ['merge'] and not skip:
-        if not silent:
-            print " ! Inconsistent migration history"
-            print " ! The following options are available:"
-            print "    --merge: will just attempt the migration ignoring any potential dependency conflicts."
+        print " ! Inconsistent migration history"
+        print " ! The following options are available:"
+        print "    --merge: will just attempt the migration ignoring any potential dependency conflicts."
         sys.exit(1)
     
     if direction == 1:
-        if not silent:
+        if verbosity:
             print " - Migrating forwards to %s." % target_name
         try:
             for mapp, mname in forwards:
                 if (mapp, mname) not in current_migrations:
-                    result = run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
+                    result = run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, verbosity=verbosity)
                     if result is False: # The migrations errored, but nicely.
                         return False
         finally:
@@ -531,7 +583,8 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
             db.send_pending_create_signals()
         # Now load initial data, only if we're really doing things and ended up at current
         if not fake and not db_dry_run and load_inital_data and target_name == migrations[-1]:
-            print " - Loading initial data for %s." % app_name
+            if verbosity:
+                print " - Loading initial data for %s." % app_name
             # Override Django's get_apps call temporarily to only load from the
             # current app
             old_get_apps, models.get_apps = (
@@ -539,15 +592,18 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
                 lambda: [models.get_app(get_app_name(app))],
             )
             # Load the initial fixture
-            call_command('loaddata', 'initial_data', verbosity=1)
+            call_command('loaddata', 'initial_data', verbosity=verbosity)
             # Un-override
             models.get_apps = old_get_apps
     elif direction == -1:
-        if not silent:
+        if verbosity:
             print " - Migrating backwards to just after %s." % target_name
         for mapp, mname in backwards:
             if (mapp, mname) in current_migrations:
-                run_backwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
+                run_backwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, verbosity=verbosity)
     else:
-        if not silent:
+        if verbosity:
             print "- Nothing to migrate."
+    
+    # Finally, fire off the post-migrate signal
+    post_migrate.send(None, app=app_name)

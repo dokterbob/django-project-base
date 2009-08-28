@@ -315,4 +315,18 @@ class TestOperations(unittest.TestCase):
         else:
             self.fail("Could insert non-unique pair.")
         db.delete_unique("test_unique", ["spam", "eggs", "ham_id"])
+    
+    def test_add_unique_fk(self):
+        """
+        Test adding a ForeignKey with unique=True or a OneToOneField
+        """
+        db.create_table("test_add_unique_fk", [
+            ('spam', models.BooleanField(default=False))
+        ])
+        db.start_transaction()
         
+        db.add_column("test_add_unique_fk", "mock1", models.ForeignKey(db.mock_model('Mock', 'mock'), null=True, unique=True))
+        db.add_column("test_add_unique_fk", "mock2", models.OneToOneField(db.mock_model('Mock', 'mock'), null=True))
+        
+        db.rollback_transaction()
+        db.delete_table("test_add_unique_fk")

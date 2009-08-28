@@ -10,6 +10,7 @@ from django.db.backends.util import truncate_name
 from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
 from django.conf import settings
+from django.utils.datastructures import SortedDict
 
 
 def alias(attrname):
@@ -53,13 +54,24 @@ class DatabaseOperations(object):
         self.debug = False
         self.deferred_sql = []
         self.dry_run = False
+        self.pending_transactions = 0
         self.pending_create_signals = []
+    
+
+    def connection_init(self):
+        """
+        Run before any SQL to let database-specific config be sent as a command,
+        e.g. which storage engine (MySQL) or transaction serialisability level.
+        """
+        pass
+    
 
     def execute(self, sql, params=[]):
         """
         Executes the given SQL statement, with optional parameters.
         If the instance's debug attribute is True, prints out what it executes.
         """
+        self.connection_init()
         cursor = connection.cursor()
         if self.debug:
             print "   = %s" % sql, params
@@ -208,7 +220,7 @@ class DatabaseOperations(object):
             self.execute(sql)
 
             # Now, drop the default if we need to
-            if not keep_default and field.default:
+            if not keep_default and field.default is not None:
                 field.default = NOT_PROVIDED
                 self.alter_column(table_name, name, field, explicit_name=False)
     
@@ -373,13 +385,16 @@ class DatabaseOperations(object):
         Creates the SQL snippet for a column. Used by add_column and add_table.
         """
         qn = connection.ops.quote_name
-
+        
         field.set_attributes_from_name(field_name)
-
+        
         # hook for the field to do any resolution prior to it's attributes being queried
         if hasattr(field, 'south_init'):
             field.south_init()
-
+        
+        # Possible hook to fiddle with the fields (e.g. defaults & TEXT on MySQL)
+        field = self._field_sanity(field)
+        
         sql = field.db_type()
         if sql:        
             field_output = [qn(field.column), sql]
@@ -389,18 +404,18 @@ class DatabaseOperations(object):
             elif field.unique:
                 # Just use UNIQUE (no indexes any more, we have delete_unique)
                 field_output.append('UNIQUE')
-
+            
             tablespace = field.db_tablespace or tablespace
             if tablespace and connection.features.supports_tablespaces and field.unique:
                 # We must specify the index tablespace inline, because we
                 # won't be generating a CREATE INDEX statement for this field.
                 field_output.append(connection.ops.tablespace_sql(tablespace, inline=True))
-
+            
             sql = ' '.join(field_output)
             sqlparams = ()
             # if the field is "NOT NULL" and a default value is provided, create the column with it
             # this allows the addition of a NOT NULL field to a table with existing rows
-            if not field.null and field.has_default():
+            if not field.null and getattr(field, '_suppress_default', True) and field.has_default():
                 default = field.get_default()
                 # If the default is actually None, don't add a default term
                 if default is not None:
@@ -437,6 +452,14 @@ class DatabaseOperations(object):
             return sql % sqlparams
         else:
             return None
+    
+    
+    def _field_sanity(self, field):
+        """
+        Placeholder for DBMS-specific field alterations (some combos aren't valid,
+        e.g. DEFAULT and TEXT on MySQL)
+        """
+        return field
     
 
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
@@ -576,7 +599,7 @@ class DatabaseOperations(object):
         Must be followed by a (commit|rollback)_transaction call.
         """
         if self.dry_run:
-            return
+            self.pending_transactions += 1
         transaction.commit_unless_managed()
         transaction.enter_transaction_management()
         transaction.managed(True)
@@ -599,9 +622,22 @@ class DatabaseOperations(object):
         Must be preceded by a start_transaction call.
         """
         if self.dry_run:
-            return
+            self.pending_transactions -= 1
         transaction.rollback()
         transaction.leave_transaction_management()
+
+    def rollback_transactions_dry_run(self):
+        """
+        Rolls back all pending_transactions during this dry run.
+        """
+        if not self.dry_run:
+            return
+        while self.pending_transactions > 0:
+            self.rollback_transaction()
+        if transaction.is_dirty():
+            # Force an exception, if we're still in a dirty transaction.
+            # This means we are missing a COMMIT/ROLLBACK.
+            transaction.leave_transaction_management()
 
 
     def send_create_signal(self, app_label, model_names):
@@ -609,8 +645,16 @@ class DatabaseOperations(object):
 
 
     def send_pending_create_signals(self):
+        # Group app_labels together
+        signals = SortedDict()
         for (app_label, model_names) in self.pending_create_signals:
-            self.really_send_create_signal(app_label, model_names)
+            try:
+                signals[app_label].extend(model_names)
+            except KeyError:
+                signals[app_label] = list(model_names)
+        # Send only one signal per app.
+        for (app_label, model_names) in signals.iteritems():
+            self.really_send_create_signal(app_label, list(set(model_names)))
         self.pending_create_signals = []
 
 

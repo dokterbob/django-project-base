@@ -24,7 +24,7 @@ try:
 except NameError:
     from sets import Set as set
 
-from south import migration, modelsparser
+from south import migration, modelsinspector
 
 
 class Command(BaseCommand):
@@ -39,21 +39,30 @@ class Command(BaseCommand):
             help='Attempt to automatically detect differences from the last migration.'),
         make_option('--freeze', action='append', dest='freeze_list', type='string',
             help='Freeze the specified model(s). Pass in either an app name (to freeze the whole app) or a single model, as appname.modelname.'),
+        make_option('--stdout', action='store_true', dest='stdout', default=False,
+            help='Print the migration to stdout instead of writing it to a file.'),
     )
     help = "Creates a new template migration for the given app"
+    usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze] [--stdout]"
     
-    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, **options):
         
         # Any supposed lists that are None become empty lists
         added_model_list = added_model_list or []
         added_field_list = added_field_list or []
         
+        # --stdout means name = -
+        if stdout:
+            name = "-"
+        
         # Make sure options are compatable
         if initial and (added_model_list or added_field_list or auto):
             print "You cannot use --initial and other options together"
+            print self.usage_str
             return
         if auto and (added_model_list or added_field_list or initial):
             print "You cannot use --auto and other options together"
+            print self.usage_str
             return
         
         # specify the default name 'initial' if a name wasn't specified and we're
@@ -64,10 +73,12 @@ class Command(BaseCommand):
         # if not name, there's an error
         if not name:
             print "You must name this migration"
+            print self.usage_str
             return
         
         if not app:
             print "Please provide an app in which to create the migration."
+            print self.usage_str
             return
         
         # Make sure the app is short form
@@ -77,6 +88,7 @@ class Command(BaseCommand):
         app_models_module = models.get_app(app)
         if not app_models_module:
             print "App '%s' doesn't seem to exist, isn't in INSTALLED_APPS, or has no models." % app
+            print self.usage_str
             return
         
         # If they've set SOUTH_AUTO_FREEZE_APP = True (or not set it - defaults to True)
@@ -92,6 +104,7 @@ class Command(BaseCommand):
             app_module = __import__('.'.join(app_module_path), {}, {}, [''])
         except ImportError:
             print "Couldn't find path to App '%s'." % app
+            print self.usage_str
             return
             
         migrations_dir = os.path.join(
@@ -137,7 +150,6 @@ class Command(BaseCommand):
         forwards = ""
         backwards = ""
         frozen_models = {} # Frozen models, used by the Fake ORM
-        stub_models = {} # Frozen models, but only enough for relation ends (old mock models)
         complete_apps = set() # Apps that are completely frozen - useable for diffing.
         
         # Sets of actions
@@ -179,15 +191,16 @@ class Command(BaseCommand):
                     model = models.get_model(app_name, model_name)
                     if model is None:
                         print "Cannot find the model '%s' to freeze it." % item
+                        print self.usage_str
                         return
                     frozen_models[model] = None
                 else:
                     # Get everything in an app!
                     frozen_models.update(dict([(x, None) for x in models.get_models(models.get_app(item))]))
                     complete_apps.add(item.split(".")[-1])
-            # For every model in the freeze list, add in dependency stubs
-            for model in frozen_models:
-                stub_models.update(model_dependencies(model))
+            # For every model in the freeze list, add in frozen dependencies
+            for model in list(frozen_models):
+                frozen_models.update(model_dependencies(model))
         
         
         ### Automatic Detection ###
@@ -211,12 +224,14 @@ class Command(BaseCommand):
             
             # Right, did we manage to get the last set of models?
             if last_models is None:
+                print self.usage_str
                 return
             
             # Good! Get new things.
             new = dict([
                 (model_key(model), prep_for_freeze(model))
                 for model in models.get_models(app_models_module)
+                if (not getattr(model._meta, "proxy", False) and getattr(model._meta, "managed", True))
             ])
             # And filter other apps out of the old
             old = dict([
@@ -224,7 +239,7 @@ class Command(BaseCommand):
                 for key, fields in last_models.items()
                 if key.split(".", 1)[0] == app
             ])
-            am, dm, cm, af, df, cf = models_diff(old, new)
+            am, dm, cm, af, df, cf, afu, dfu = models_diff(old, new)
             
             # For models that were there before and after, do a meta diff
             was_meta_change = False
@@ -234,10 +249,10 @@ class Command(BaseCommand):
                     added_uniques.add((mkey, entry))
                     was_meta_change = True
                 for entry in du:
-                    deleted_uniques.add((mkey, entry))
+                    deleted_uniques.add((mkey, entry, last_orm[mkey]))
                     was_meta_change = True
             
-            if not (am or dm or af or df or cf or was_meta_change):
+            if not (am or dm or af or df or cf or afu or dfu or was_meta_change):
                 print "Nothing seems to have changed."
                 return
             
@@ -263,6 +278,12 @@ class Command(BaseCommand):
                     last_models[mkey][fname],
                     last_models,
                 ))
+            
+            # Uniques need merging
+            added_uniques = added_uniques.union(afu)
+            
+            for mkey, entry in dfu:
+                deleted_uniques.add((mkey, entry, last_orm[mkey]))
         
         
         ### Added model ###
@@ -272,17 +293,17 @@ class Command(BaseCommand):
             
             model = model_unkey(mkey)
             
-            # Add the model's dependencies to the stubs
-            stub_models.update(model_dependencies(model))
+            # Add the model's dependencies to the frozens
+            frozen_models.update(model_dependencies(model))
             # Get the field definitions
-            fields = modelsparser.get_model_fields(model)
+            fields = modelsinspector.get_model_fields(model)
             # Turn the (class, args, kwargs) format into a string
             fields = triples_to_defs(app, model, fields)
             # Make the code
             forwards += CREATE_TABLE_SNIPPET % (
                 model._meta.object_name,
                 model._meta.db_table,
-                "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                "\n            ".join(["('%s', orm[%r])," % (fname, mkey + ":" + fname) for fname, fdef in fields.items()]),
                 model._meta.app_label,
                 model._meta.object_name,
             )
@@ -302,8 +323,6 @@ class Command(BaseCommand):
         ### Added fields ###
         for mkey, field_name in added_fields:
             
-            print " + Added field '%s.%s'" % (mkey, field_name)
-            
             # Get the model
             model = model_unkey(mkey)
             # Get the field
@@ -316,36 +335,39 @@ class Command(BaseCommand):
             # ManyToMany fields need special attention.
             if isinstance(field, models.ManyToManyField):
                 if not field.rel.through: # Bug #120
-                    # Add a stub model for each side
-                    stub_models[model] = None
-                    stub_models[field.rel.to] = None
+                    # Add a frozen model for each side
+                    frozen_models[model] = None
+                    frozen_models[field.rel.to] = None
                     # And a field defn, that's actually a table creation
                     forwards += CREATE_M2MFIELD_SNIPPET % (
                         model._meta.object_name,
                         field.name,
                         field.m2m_db_table(),
                         field.m2m_column_name()[:-3], # strip off the '_id' at the end
-                        model._meta.object_name,
+                        poss_ormise(app, model, model._meta.object_name),
                         field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
-                        field.rel.to._meta.object_name
+                        poss_ormise(app, field.rel.to, field.rel.to._meta.object_name)
                         )
                     backwards += DELETE_M2MFIELD_SNIPPET % (
                         model._meta.object_name,
                         field.name,
                         field.m2m_db_table()
                     )
+                    print " + Added M2M '%s.%s'" % (mkey, field_name)
                 continue
             
             # GenericRelations need ignoring
             if isinstance(field, GenericRelation):
                 continue
             
+            print " + Added field '%s.%s'" % (mkey, field_name)
+            
             # Add any dependencies
-            stub_models.update(field_dependencies(field))
+            frozen_models.update(field_dependencies(field))
             
             # Work out the definition
             triple = remove_useless_attributes(
-                modelsparser.get_model_fields(model)[field_name])
+                modelsinspector.get_model_fields(model)[field_name])
             
             field_definition = make_field_constructor(app, field, triple)
             
@@ -354,7 +376,7 @@ class Command(BaseCommand):
                 field.name,
                 model._meta.db_table,
                 field.name,
-                field_definition,
+                "orm[%r]" % (mkey + ":" + field.name),
             )
             backwards += DELETE_FIELD_SNIPPET % (
                 model._meta.object_name,
@@ -374,12 +396,12 @@ class Command(BaseCommand):
             
             # ManyToMany fields need special attention.
             if isinstance(field, models.ManyToManyField):
-                # Add a stub model for each side, if they're not already there
+                # Add a frozen model for each side, if they're not already there
                 # (if we just added old versions, we might override new ones)
-                if model not in stub_models:
-                    stub_models[model] = last_models
+                if model not in frozen_models:
+                    frozen_models[model] = last_models
                 if field.rel.to not in last_models:
-                    stub_models[field.rel.to] = last_models
+                    frozen_models[field.rel.to] = last_models
                 # And a field defn, that's actually a table deletion
                 forwards += DELETE_M2MFIELD_SNIPPET % (
                     model._meta.object_name,
@@ -391,16 +413,16 @@ class Command(BaseCommand):
                     field.name,
                     field.m2m_db_table(),
                     field.m2m_column_name()[:-3], # strip off the '_id' at the end
-                    model._meta.object_name,
+                    poss_ormise(app, model, model._meta.object_name),
                     field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
-                    field.rel.to._meta.object_name
+                    poss_ormise(app, field.rel.to, field.rel.to._meta.object_name)
                     )
                 continue
             
             # Add any dependencies
             deps = field_dependencies(field, last_models)
-            deps.update(stub_models)
-            stub_models = deps
+            deps.update(frozen_models)
+            frozen_models = deps
             
             # Work out the definition
             triple = remove_useless_attributes(triple)
@@ -417,7 +439,7 @@ class Command(BaseCommand):
                 field.name,
                 model._meta.db_table,
                 field.name,
-                field_definition,
+                "orm[%r]" % (mkey + ":" + field.name),
             )
         
         
@@ -426,10 +448,10 @@ class Command(BaseCommand):
             
             print " - Deleted model '%s.%s'" % (model._meta.app_label,model._meta.object_name)
             
-            # Add the model's dependencies to the stubs
+            # Add the model's dependencies to the frozens
             deps = model_dependencies(model, last_models)
-            deps.update(stub_models)
-            stub_models = deps
+            deps.update(frozen_models)
+            frozen_models = deps
             
             # Turn the (class, args, kwargs) format into a string
             fields = triples_to_defs(app, model, fields)
@@ -443,7 +465,7 @@ class Command(BaseCommand):
             backwards += CREATE_TABLE_SNIPPET % (
                 model._meta.object_name,
                 model._meta.db_table,
-                "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                "\n            ".join(["('%s', orm[%r])," % (fname, mkey + ":" + fname) for fname, fdef in fields.items()]),
                 model._meta.app_label,
                 model._meta.object_name,
             )
@@ -474,17 +496,19 @@ class Command(BaseCommand):
             forwards += CHANGE_FIELD_SNIPPET % (
                 model._meta.object_name,
                 field_name,
+                new_def,
                 model._meta.db_table,
                 field.get_attname(),
-                new_def,
+                "orm[%r]" % (mkey + ":" + field.name),
             )
             
             backwards += CHANGE_FIELD_SNIPPET % (
                 model._meta.object_name,
                 field_name,
+                old_def,
                 model._meta.db_table,
                 field.get_attname(),
-                old_def,
+                "orm[%r]" % (mkey + ":" + field.name),
             )
         
         
@@ -492,7 +516,10 @@ class Command(BaseCommand):
         for mkey, ut in added_uniques:
             
             model = model_unkey(mkey)
-            print " + Added unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
+            if len(ut) == 1:
+                print " + Added unique for %s on %s." % (", ".join(ut), model._meta.object_name)
+            else:
+                print " + Added unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
             
             cols = [get_field_column(model, f) for f in ut]
             
@@ -503,32 +530,36 @@ class Command(BaseCommand):
                 cols,
             )
             
-            backwards += DELETE_UNIQUE_SNIPPET % (
+            backwards = DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
                 cols,
-            )
+            ) + backwards
         
         
         ### Deleted unique_togethers ###
-        for mkey, ut in deleted_uniques:
+        for mkey, ut, model in deleted_uniques:
             
-            model = model_unkey(mkey)
-            print " - Deleted unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
+            if len(ut) == 1:
+                print " - Deleted unique for %s on %s." % (", ".join(ut), model._meta.object_name)
+            else:
+                print " - Deleted unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
             
-            forwards += DELETE_UNIQUE_SNIPPET % (
+            cols = [get_field_column(model, f) for f in ut]
+            
+            forwards = DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
-                ut,
-            )
+                cols,
+            ) + forwards
             
             backwards += CREATE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
-                ut,
+                cols,
             )
         
         
@@ -543,13 +574,6 @@ class Command(BaseCommand):
         for model, last_models in frozen_models.items():
             all_models[model_key(model)] = prep_for_freeze(model, last_models)
         
-        # Fill out stub model definitions
-        for model, last_models in stub_models.items():
-            key = model_key(model)
-            if key in all_models:
-                continue # We'd rather use full models than stubs.
-            all_models[key] = prep_for_stub(model, last_models)
-        
         # Do some model cleanup, and warnings
         for modelname, model in all_models.items():
             for fieldname, fielddef in model.items():
@@ -558,61 +582,72 @@ class Command(BaseCommand):
                     del model['Meta']
                 # Warn about undefined fields
                 elif fielddef is None:
-                    print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
+                    print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually to define it, or add the south_field_triple method to it." % (
                         fieldname,
                         modelname,
                     )
                     model[fieldname] = FIELD_NEEDS_DEF_SNIPPET
         
-        # Write the migration file
-        fp = open(os.path.join(migrations_dir, new_filename), "w")
-        fp.write(MIGRATION_SNIPPET % (
+        # So, what's in this file, then?
+        file_contents = MIGRATION_SNIPPET % (
             encoding or "", '.'.join(app_module_path), 
             forwards, 
             backwards, 
             pprint_frozen_models(all_models),
             complete_apps and "complete_apps = [%s]" % (", ".join(map(repr, complete_apps))) or ""
-        ))
-        fp.close()
-        print "Created %s." % new_filename
+        )
+        # - is a special name which means 'print to stdout'
+        if name == "-":
+            print file_contents
+        # Write the migration file if the name isn't -
+        else:
+            fp = open(os.path.join(migrations_dir, new_filename), "w")
+            fp.write(file_contents)
+            fp.close()
+            print "Created %s." % new_filename
 
 
 ### Cleaning functions for freezing
 
+
+def ormise_triple(field, triple):
+    "Given a 'triple' definition, runs poss_ormise on each arg."
+    
+    # If it's a string defn, return it plain.
+    if not isinstance(triple, (list, tuple)):
+        return triple
+    
+    # For each arg, if it's a related type, try ORMising it.
+    args = []
+    for arg in triple[1]:
+        if hasattr(field, "rel") and hasattr(field.rel, "to") and field.rel.to:
+            args.append(poss_ormise(None, field.rel.to, arg))
+        else:
+            args.append(arg)
+    
+    return (triple[0], args, triple[2])
+
+
 def prep_for_freeze(model, last_models=None):
+    # If we have a set of models to use, use them.
     if last_models:
         fields = last_models[model_key(model)]
     else:
-        fields = modelsparser.get_model_fields(model, m2m=True)
+        fields = modelsinspector.get_model_fields(model, m2m=True)
+    # Remove _stub if it stuck in
+    if "_stub" in fields:
+        del fields["_stub"]
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
-        fields[name] = remove_useless_attributes(field)
+        if name == "Meta":
+            continue
+        real_field = model._meta.get_field_by_name(name)[0]
+        fields[name] = ormise_triple(real_field, remove_useless_attributes(field))
     # See if there's a Meta
     if last_models:
         meta = last_models[model_key(model)].get("Meta", {})
     else:
-        meta = modelsparser.get_model_meta(model)
-    if meta:
-        fields['Meta'] = remove_useless_meta(meta)
-    return fields
-
-
-def prep_for_stub(model, last_models=None):
-    if last_models:
-        fields = last_models[model_key(model)]
-    else:
-        fields = modelsparser.get_model_fields(model)
-    # Now, take only the PK (and a 'we're a stub' field) and freeze 'em
-    pk = model._meta.pk.name
-    fields = {
-        pk: remove_useless_attributes(fields[pk]),
-        "_stub": True,
-    }
-    # Meta is important too.
-    if last_models:
-        meta = last_models[model_key(model)].get("Meta", {})
-    else:
-        meta = modelsparser.get_model_meta(model)
+        meta = modelsinspector.get_model_meta(model)
     if meta:
         fields['Meta'] = remove_useless_meta(meta)
     return fields
@@ -622,7 +657,7 @@ def prep_for_stub(model, last_models=None):
 
 def model_key(model):
     "For a given model, return 'appname.modelname'."
-    return ("%s.%s" % (model._meta.app_label, model._meta.object_name)).lower()
+    return "%s.%s" % (model._meta.app_label, model._meta.object_name.lower())
 
 def model_unkey(key):
     "For 'appname.modelname', return the model."
@@ -635,28 +670,42 @@ def model_unkey(key):
 
 ### Dependency resolvers
 
-def model_dependencies(model, last_models=None):
+def model_dependencies(model, last_models=None, checked_models=None):
     """
     Returns a set of models this one depends on to be defined; things like
     OneToOneFields as ID, ForeignKeys everywhere, etc.
     """
     depends = {}
+    checked_models = checked_models or set()
+    # Get deps for each field
     for field in model._meta.fields + model._meta.many_to_many:
         depends.update(field_dependencies(field, last_models))
+    # Now recurse
+    new_to_check = set(depends.keys()) - checked_models
+    while new_to_check:
+        checked_model = new_to_check.pop()
+        if checked_model == model or checked_model in checked_models:
+            continue
+        checked_models.add(checked_model)
+        deps = model_dependencies(checked_model, last_models, checked_models)
+        # Loop through dependencies...
+        for dep, value in deps.items():
+            # If the new dep is not already checked, add to the queue
+            if (dep not in depends) and (dep not in new_to_check) and (dep not in checked_models):
+                new_to_check.add(dep)
+            depends[dep] = value
     return depends
 
-def stub_model_dependencies(model, last_models=None):
-    """
-    Returns a set of models this one depends on to be defined as a stub model
-    (i.e. deps of the PK).
-    """
-    return field_dependencies(model._meta.pk, last_models)
 
-def field_dependencies(field, last_models=None):
+def field_dependencies(field, last_models=None, checked_models=None):
+    checked_models = checked_models or set()
     depends = {}
-    if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField)):
+    if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField, GenericRelation)):
+        if field.rel.to in checked_models:
+            return depends
+        checked_models.add(field.rel.to)
         depends[field.rel.to] = last_models
-        depends.update(stub_model_dependencies(field.rel.to, last_models))
+        depends.update(field_dependencies(field.rel.to._meta.pk, last_models, checked_models))
     return depends
     
 
@@ -666,7 +715,7 @@ def field_dependencies(field, last_models=None):
 def pprint_frozen_models(models):
     return "{\n        %s\n    }" % ",\n        ".join([
         "%r: %s" % (name, pprint_fields(fields))
-        for name, fields in models.items()
+        for name, fields in sorted(models.items())
     ])
 
 def pprint_fields(fields):
@@ -679,8 +728,8 @@ def pprint_fields(fields):
 ### Output sanitisers
 
 
-USELESS_KEYWORDS = ["choices", "help_text"]
-USELESS_DB_KEYWORDS = ["related_name", "upload_to"] # Important for ORM, not for DB.
+USELESS_KEYWORDS = ["choices", "help_text", "upload_to", "verbose_name"]
+USELESS_DB_KEYWORDS = ["related_name"] # Important for ORM, not for DB.
 
 def remove_useless_attributes(field, db=False):
     "Removes useless (for database) attributes from the field's defn."
@@ -706,8 +755,11 @@ def remove_useless_meta(meta):
 def make_field_constructor(default_app, field, triple):
     """
     Given the defualt app, the field class,
-    and the defn triple (or string), make the defition string.
+    and the defn triple (or string), make the definition string.
     """
+    # It might be None; return a placeholder
+    if triple is None:
+        return FIELD_NEEDS_DEF_SNIPPET
     # It might be a defn string already...
     if isinstance(triple, (str, unicode)):
         return triple
@@ -771,6 +823,8 @@ def models_diff(old, new):
     added_fields = set()
     deleted_fields = set()
     changed_fields = []
+    added_uniques = set()
+    deleted_uniques = set()
     
     # See if anything's vanished
     for key in old:
@@ -802,12 +856,92 @@ def models_diff(old, new):
                     added_fields.add((key, fieldname))
             # For the ones that exist in both models, see if they were changed
             for fieldname in still_there:
-                if fieldname != "Meta" and \
-                   remove_useless_attributes(new[key][fieldname], True) != \
-                   remove_useless_attributes(old[key][fieldname], True):
-                    changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
+                if fieldname != "Meta":
+                    if different_attributes(
+                     remove_useless_attributes(old[key][fieldname], True),
+                     remove_useless_attributes(new[key][fieldname], True)):
+                        changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
+                    # See if their uniques have changed
+                    old_triple = old[key][fieldname]
+                    new_triple = new[key][fieldname]
+                    if is_triple(old_triple) and is_triple(new_triple):
+                        if old_triple[2].get("unique", "False") != new_triple[2].get("unique", "False"):
+                            # Make sure we look at the one explicitly given to see what happened
+                            if "unique" in old_triple[2]:
+                                if old_triple[2]['unique'] == "False":
+                                    added_uniques.add((key, (fieldname,)))
+                                else:
+                                    deleted_uniques.add((key, (fieldname,)))
+                            else:
+                                if new_triple[2]['unique'] == "False":
+                                    deleted_uniques.add((key, (fieldname,)))
+                                else:
+                                    added_uniques.add((key, (fieldname,)))
     
-    return added_models, deleted_models, continued_models, added_fields, deleted_fields, changed_fields
+    return added_models, deleted_models, continued_models, added_fields, deleted_fields, changed_fields, added_uniques, deleted_uniques
+
+
+def is_triple(triple):
+    "Returns whether the argument is a triple."
+    return isinstance(triple, (list, tuple)) and len(triple) == 3 and \
+        isinstance(triple[0], (str, unicode)) and \
+        isinstance(triple[1], (list, tuple)) and \
+        isinstance(triple[2], dict)
+
+
+def different_attributes(old, new):
+    """
+    Backwards-compat comparison that ignores orm. on the RHS and not the left
+    and which knows django.db.models.fields.CharField = models.CharField.
+    Has a whole load of tests in tests/autodetectoion.py.
+    """
+    
+    # If they're not triples, just do normal comparison
+    if not is_triple(old) or not is_triple(new):
+        return old != new
+    
+    # Expand them out into parts
+    old_field, old_pos, old_kwd = old
+    new_field, new_pos, new_kwd = new
+    
+    # Copy the positional and keyword arguments so we can compare them and pop off things
+    old_pos, new_pos = old_pos[:], new_pos[:]
+    old_kwd = dict(old_kwd.items())
+    new_kwd = dict(new_kwd.items())
+    
+    # Remove comparison of the existence of 'unique', that's done elsewhere.
+    # TODO: Make this work for custom fields where unique= means something else?
+    if "unique" in old_kwd:
+        del old_kwd['unique']
+    if "unique" in new_kwd:
+        del new_kwd['unique']
+    
+    # If the first bit is different, check it's not by dj.db.models...
+    if old_field != new_field:
+        if old_field.startswith("models.") and (new_field.startswith("django.db.models") \
+         or new_field.startswith("django.contrib.gis")):
+            if old_field.split(".")[-1] != new_field.split(".")[-1]:
+                return True
+            else:
+                # Remove those fields from the final comparison
+                old_field = new_field = ""
+    
+    # If there's a positional argument in the first, and a 'to' in the second,
+    # see if they're actually comparable.
+    if (old_pos and "to" in new_kwd) and ("orm" in new_kwd['to'] and "orm" not in old_pos[0]):
+        # Do special comparison to fix #153
+        try:
+            if old_pos[0] != new_kwd['to'].split("'")[1].split(".")[1]:
+                return True
+        except IndexError:
+            pass # Fall back to next comparison
+        # Remove those attrs from the final comparison
+        old_pos = old_pos[1:]
+        del new_kwd['to']
+    
+    return old_field != new_field or old_pos != new_pos or old_kwd != new_kwd
+    
+    
 
 
 def meta_diff(old, new):
@@ -903,6 +1037,7 @@ DELETE_FIELD_SNIPPET = '''
         '''
 CHANGE_FIELD_SNIPPET = '''
         # Changing field '%s.%s'
+        # (to signature: %s)
         db.alter_column(%r, %r, %s)
         '''
 CREATE_M2MFIELD_SNIPPET = '''

@@ -1,10 +1,16 @@
+"""
+Migrate management command.
+"""
+
+import sys
+from optparse import make_option
+
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.conf import settings
 from django.db import models
-from optparse import make_option
+
 from south import migration
-import sys
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
@@ -30,14 +36,12 @@ class Command(BaseCommand):
             help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         )
     help = "Runs migrations for all apps."
+    args = "[appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
 
     def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
 
         # Work out what the resolve mode is
         resolve_mode = merge and "merge" or (skip and "skip" or None)
-        # Turn on db debugging
-        from south.db import db
-        db.debug = True
         
         # NOTE: THIS IS DUPLICATED FROM django.core.management.commands.syncdb
         # This code imports any module named 'management' in INSTALLED_APPS.
@@ -54,30 +58,36 @@ class Command(BaseCommand):
         # END DJANGO DUPE CODE
         
         # if all_apps flag is set, shift app over to target
-        if options['all_apps']:
+        if options.get('all_apps', False):
             target = app
             app = None
 
         # Migrate each app
         if app:
             apps = [migration.get_app(app.split(".")[-1])]
+            if apps == [None]:
+                print "The app '%s' does not appear to use migrations." % app
+                print "./manage.py migrate " + self.args
+                return
         else:
             apps = migration.get_migrated_apps()
-        silent = options.get('verbosity', 0) == 0
         
         if list and apps:
             list_migrations(apps)
         
         if not list:
+            tree = migration.dependency_tree()
+            
             for app in apps:
                 result = migration.migrate_app(
                     app,
+                    tree,
                     resolve_mode = resolve_mode,
                     target_name = target,
                     fake = fake,
                     db_dry_run = db_dry_run,
-                    silent = silent,
-                    load_inital_data = not options['no_initial_data'],
+                    verbosity = int(options.get('verbosity', 0)),
+                    load_inital_data = not options.get('no_initial_data', False),
                     skip = skip,
                 )
                 if result is False:

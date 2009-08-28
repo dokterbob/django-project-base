@@ -1,5 +1,5 @@
 from django.core import management
-from django.core.management.commands import test
+from django.core.management.commands import testserver
 from django.core.management.commands import syncdb
 from django.conf import settings
 
@@ -14,7 +14,7 @@ class MigrateAndSyncCommand(SyncDbCommand):
             break
 
 
-class Command(test.Command):
+class Command(testserver.Command):
     
     def handle(self, *args, **kwargs):
         management.get_commands()
