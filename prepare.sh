@@ -14,7 +14,7 @@ if [ ! -f portnumber ]; then
         echo
     done
     
-    echo $REPLY > portnumber
+    echo $PORTNUMBER > portnumber
 fi
 
 if [ ! -f settings_local.py ]; then
