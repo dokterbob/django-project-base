@@ -31,5 +31,5 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'django_extensions',
     'debug_toolbar',
-    'south',
+    'test_utils',
 )
