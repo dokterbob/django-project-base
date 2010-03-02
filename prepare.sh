@@ -1,9 +1,20 @@
 #!/bin/sh
 
-cd `dirname $BASH_SOURCE`
-
-PWD=`pwd`
+PWD=`dirname $0`
 BASEPATH=`basename $PWD`
+
+BASH=bash
+GIT=git
+
+if [ -d .git ]; then
+    echo 'Checkout out submodule dependencies'
+    $GIT submodule init
+    $GIT submodule update
+    if [ $? != 0 ]; then
+        echo 'Error updating submodules.'
+        exit -1
+    fi
+fi
 
 if [ ! -f portnumber ]; then
     echo 'Port number not set.'
@@ -31,5 +42,5 @@ fi
 
 if [ ! -f database.sqlite ]; then
     echo 'No database found, running syncdb.'
-    ./runserver.sh syncdb
+    $BASH runserver.sh syncdb
 fi

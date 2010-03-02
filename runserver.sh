@@ -1,9 +1,11 @@
 #!/bin/sh
 
-cd `dirname $BASH_SOURCE`
-
-PWD=`pwd`
+PWD=`dirname $0`
 BASEPATH=`basename $PWD`
+PYTHON=python
+SCREEN=screen
+
+cd $PWD
 
 if [ ! -f portnumber ]; then
     echo 'No port number set!' >&2
@@ -13,8 +15,8 @@ if [ ! -f portnumber ]; then
 fi
 
 if [[ $1 != "" ]]; then
-    python manage.py $*
+    $PYTHON manage.py $*
 else
-    screen -S $BASEPATH python manage.py runserver `hostname`:`cat portnumber`
+    $SCREEN -S $BASEPATH $PYTHON manage.py runserver_plus `hostname`:`cat portnumber`
 fi
 
