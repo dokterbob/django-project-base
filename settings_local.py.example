@@ -1,7 +1,4 @@
-# Consider ourself as internal IP
-from socket import gethostname, gethostbyname
-INTERNAL_IPS = ( '127.0.0.1', 
-                 gethostbyname(gethostname()),)
+from settings_default import *
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -14,22 +11,16 @@ TIME_ZONE = 'Europe/Amsterdam'
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'nl-nl'
 
-#DATABASE_ENGINE = 'mysql'
-#DATABASE_NAME = ''
-DATABASE_USER = ''             # Not used with sqlite3.
-DATABASE_PASSWORD = ''         # Not used with sqlite3.
-DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
-DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
+# DATABASE_ENGINE = 'mysql'
+# DATABASE_NAME = ''
+# DATABASE_USER = ''             # Not used with sqlite3.
+# DATABASE_PASSWORD = ''         # Not used with sqlite3.
+# DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
+# DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
 #DEBUG = False
 
-INSTALLED_APPS = (
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.sites',
-    'django.contrib.admin',
-    'django_extensions',
-    'debug_toolbar',
-    'test_utils',
-)
+# Just append to the default value
+# INSTALLED_APPS += (
+# 	'my_little_app',
+# )
