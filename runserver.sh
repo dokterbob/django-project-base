@@ -17,6 +17,6 @@ fi
 if [[ $1 != "" ]]; then
     $PYTHON manage.py $*
 else
-    $SCREEN -S $BASEPATH $PYTHON manage.py runserver_plus `hostname`:`cat portnumber`
+    $SCREEN -S $BASEPATH $PYTHON manage.py runserver `hostname`:`cat portnumber`
 fi
 
