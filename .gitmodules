@@ -1,9 +1,0 @@
-[submodule "dependencies/django-extensions"]
-	path = dependencies/django-extensions
-	url = git://github.com/django-extensions/django-extensions.git
-[submodule "dependencies/django-debug-toolbar"]
-	path = dependencies/django-debug-toolbar
-	url = git://github.com/robhudson/django-debug-toolbar.git
-[submodule "dependencies/django-test-utils"]
-	path = dependencies/django-test-utils
-	url = git://github.com/ericholscher/django-test-utils.git
