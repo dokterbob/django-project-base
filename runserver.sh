@@ -8,9 +8,9 @@ ENVDIR=env
 
 cd $PWD
 
-if [ -d $ENV ]; then
+if [ -d $ENVDIR ]; then
     echo 'Activating virtualenv environment'
-    $ENV/bin/activate
+    $ENVDIR/bin/activate
 fi
 
 if [ ! -f portnumber ]; then
