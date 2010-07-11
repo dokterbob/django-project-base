@@ -6,3 +6,5 @@
 /static/media
 portnumber
 settings_local.py
+env
+
