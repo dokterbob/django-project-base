@@ -20,7 +20,7 @@ if [ -d .git ]; then
 fi
 
 if [ ! -d $ENVDIR ]; then
-    echo 'Preparing virtualenv environment in $ENVDIR directory'
+    echo "Preparing virtualenv environment in $ENVDIR directory"
     $VIRTUALENV $ENVDIR
     
     echo 'Activating environment'
