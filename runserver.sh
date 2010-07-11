@@ -4,8 +4,14 @@ PWD=`dirname $0`
 BASEPATH=`basename $PWD`
 PYTHON=python
 SCREEN=screen
+ENVDIR=env
 
 cd $PWD
+
+if [ -d $ENV ]; then
+    echo 'Activating virtualenv environment'
+    $ENV/bin/activate
+fi
 
 if [ ! -f portnumber ]; then
     echo 'No port number set!' >&2

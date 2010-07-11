@@ -5,6 +5,9 @@ BASEPATH=`basename $PWD`
 
 BASH=bash
 GIT=git
+VIRTUALENV=virtualenv
+PIP=pip
+ENVDIR=env
 
 if [ -d .git ]; then
     echo 'Checkout out submodule dependencies'
@@ -13,6 +16,24 @@ if [ -d .git ]; then
     if [ $? != 0 ]; then
         echo 'Error updating submodules.'
         exit -1
+    fi
+fi
+
+if [ ! -d $ENVDIR ]; then
+    echo 'Preparing virtualenv environment in $ENVDIR directory'
+    $VIRTUALENV $ENVDIR
+    
+    echo 'Activating environment'
+    source $ENVDIR/bin/activate
+    
+    echo 'Installing required packages'
+    pip install -r requirements.txt
+    
+    if [ $? = 0 ]; then
+        echo 'That went allright, continue'
+    else
+        echo 'Errro installing dependencies, breaking off'
+        return -1
     fi
 fi
 
