@@ -22,12 +22,9 @@ fi
 if [ ! -d $ENVDIR ]; then
     echo "Preparing virtualenv environment in $ENVDIR directory"
     $VIRTUALENV $ENVDIR
-    
-    echo 'Activating environment'
-    source $ENVDIR/bin/activate
-    
+        
     echo 'Installing required packages'
-    pip install -r requirements.txt
+    pip install -E $ENVDIR -r requirements.txt
     
     if [ $? = 0 ]; then
         echo 'That went allright, continue'
