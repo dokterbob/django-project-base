@@ -5,7 +5,7 @@ BASEPATH=`basename $PWD`
 
 BASH=bash
 GIT=git
-VIRTUALENV=virtualenv
+VIRTUALENV="virtualenv --distribute"
 PIP=pip
 ENVDIR=env
 
