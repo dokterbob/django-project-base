@@ -21,12 +21,20 @@ fi
 
 if [ ! -d $ENVDIR ]; then
     echo "Preparing virtualenv environment in $ENVDIR directory"
+    pip install virtualenv
+    if [ $? == 0 ]; then
+        echo 'VirtualEnv installed allright'
+    else
+        echo 'Error installing VirtualEnv, breaking off'
+        exit -1
+    fi
+    
     $VIRTUALENV $ENVDIR
         
     echo 'Installing required packages'
     pip install -E $ENVDIR -r requirements.txt
     
-    if [ $? = 0 ]; then
+    if [ $? == 0 ]; then
         echo 'That went allright, continue'
     else
         echo 'Errro installing dependencies, breaking off'
