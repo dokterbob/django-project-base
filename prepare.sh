@@ -60,7 +60,7 @@ if [ ! -f settings_local.py ]; then
     
     echo
     echo 'Generating secret key in settings_local.py.'
-    SECRET_KEY=`./runserver.sh generate_secret_key`
+    SECRET_KEY=`$BASH runserver.sh generate_secret_key`
     echo >> settings_local.py
     echo "# Make this unique, and don't share it with anybody." >> settings_local.py
     echo "SECRET_KEY = '$SECRET_KEY'" >> settings_local.py

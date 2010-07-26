@@ -9,8 +9,8 @@ ENVDIR=env
 cd $PWD
 
 if [ -d $ENVDIR ]; then
-    echo 'Activating virtualenv environment' >&2
-    source $ENVDIR/bin/activate
+    echo 'Using python from virtualenv environment' >&2
+    PYTHON=$ENVDIR/bin/python
 fi
 
 if [ ! -f portnumber ]; then
