@@ -67,7 +67,6 @@ if DEBUG:
     DATABASE_ENGINE = 'sqlite3'
     DATABASE_NAME = path.join(PROJECT_ROOT, 'database.sqlite')
 
-
 INSTALLED_APPS = (
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -76,4 +75,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'django_extensions',
     'debug_toolbar',
+    'indexer',
+    'paging',
+    'sentry.client',
 )
