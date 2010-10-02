@@ -18,9 +18,48 @@ LANGUAGE_CODE = 'nl-nl'
 # DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
 # DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
-#DEBUG = False
+
+# DEBUG = False
+
 
 # Just append to the default value
 # INSTALLED_APPS += (
 # 	'my_little_app',
 # )
+
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_HOST = ''
+# DEFAULT_FROM_EMAIL = ''
+
+
+# Cache settings
+# CACHE_BACKEND = 'locmem://'
+# CACHE_PREFIX = DJANGO_PROJECT
+# CACHE_TIMEOUT = 60
+
+
+# Sentry settings
+# What should these site's errors by called in the log?
+# SENTRY_NAME = 'www.mysite.com'
+# Just one daily email
+# ADMINS = ()
+# SENTRY_ADMINS = (
+#     ('Name', 'emai'),
+# )
+# MANAGERS = SENTRY_ADMINS
+
+# General logging
+# No debuggin and log errors & warnings to sentry
+# import logging
+# logging.basicConfig(level=logging.WARNING,
+#                     format='%(levelname)-8s %(message)s')
+# 
+# 
+# from sentry.client.handlers import SentryHandler
+# 
+# logging.getLogger().addHandler(SentryHandler())
+# 
+# # Add StreamHandler to sentry's default so you can catch missed exceptions
+# logging.getLogger('sentry').addHandler(logging.StreamHandler())
