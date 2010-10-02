@@ -6,18 +6,8 @@ BASEPATH=`basename $PWD`
 BASH=bash
 GIT=git
 VIRTUALENV="virtualenv --distribute"
-PIP=pip
+PIP="pip --timeout 30 -q"
 ENVDIR=env
-
-if [ -d .git ]; then
-    echo 'Checkout out submodule dependencies'
-    $GIT submodule init
-    $GIT submodule update
-    if [ $? != 0 ]; then
-        echo 'Error updating submodules.'
-        exit -1
-    fi
-fi
 
 if [ ! -d $ENVDIR ]; then
     echo "Preparing virtualenv environment in $ENVDIR directory"
@@ -30,16 +20,16 @@ if [ ! -d $ENVDIR ]; then
     fi
     
     $VIRTUALENV $ENVDIR
+fi
         
-    echo 'Installing required packages'
-    pip install -E $ENVDIR -r requirements.txt
-    
-    if [ $? == 0 ]; then
-        echo 'That went allright, continue'
-    else
-        echo 'Errro installing dependencies, breaking off'
-        return -1
-    fi
+echo 'Installing required packages'
+pip install -E $ENVDIR -r requirements.txt
+
+if [ $? == 0 ]; then
+    echo 'That went allright, continue'
+else
+    echo 'Errro installing dependencies, breaking off'
+    exit -1
 fi
 
 if [ ! -f portnumber ]; then
