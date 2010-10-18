@@ -1,12 +1,12 @@
 #!/bin/sh
 
-PWD=`dirname $0`
+cd `dirname $0`
+
+PWD=`pwd`
 BASEPATH=`basename $PWD`
 PYTHON=python
 SCREEN=screen
 ENVDIR=env
-
-cd $PWD
 
 if [ -d $ENVDIR ]; then
     echo 'Using python from virtualenv environment' >&2
