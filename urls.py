@@ -5,8 +5,11 @@ from django.contrib import admin
 admin.autodiscover()
 
 if settings.DEBUG:
+    import staticmedia
+    urlpatterns = staticmedia.serve(show_indexes=True)
+
     from os import path
-    urlpatterns = patterns('django.views', (r'^media/(?P<path>.*)$', 'static.serve', {'document_root': path.join(settings.PROJECT_ROOT, 'static') }))
+    urlpatterns += patterns('django.views', (r'^media/(?P<path>.*)$', 'static.serve', {'document_root': path.join(settings.PROJECT_ROOT, 'media') }))
 else:
     urlpatterns = patterns('')
 

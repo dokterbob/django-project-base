@@ -1,4 +1,6 @@
 Django>=1.2.3
 django_extensions
 django_debug_toolbar
-git+http://github.com/dcramer/django-sentry.git@518bd38#egg=django-sentry
+django-staticmedia
+django-sentry
+
