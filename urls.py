@@ -5,11 +5,15 @@ from django.contrib import admin
 admin.autodiscover()
 
 if settings.DEBUG:
-    import staticmedia
-    urlpatterns = staticmedia.serve(show_indexes=True)
-
+    from staticfiles.urls import staticfiles_urlpatterns
+    
+    urlpatterns += staticfiles_urlpatterns()
+    
     from os import path
-    urlpatterns += patterns('django.views', (r'^media/(?P<path>.*)$', 'static.serve', {'document_root': path.join(settings.PROJECT_ROOT, 'media') }))
+    urlpatterns += patterns('django.views', (r'^%s(?P<path>.*)$' % settings.MEDIA_URL,
+                                              'static.serve', 
+                                             {'document_root': settings.MEDIA_ROOT }))
+    
 else:
     urlpatterns = patterns('')
 
