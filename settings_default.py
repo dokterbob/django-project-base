@@ -24,8 +24,11 @@ MEDIA_URL = '/static/media/'
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
 # Examples: "http://foo.com/media/", "/media/".
-ADMIN_MEDIA_PREFIX = '/admin/media/'
+ADMIN_MEDIA_PREFIX = '/static/global/admin/'
 
+# django-staticfiles
+STATIC_ROOT = path.join(PROJECT_ROOT, 'static', 'global')
+STATIC_URL = '/static/global/'
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -76,5 +79,5 @@ INSTALLED_APPS = (
     'django_extensions',
     'debug_toolbar',
     'sentry.client',
-    'staticmedia',
+    'staticfiles',
 )
