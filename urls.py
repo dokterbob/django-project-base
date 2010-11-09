@@ -5,7 +5,7 @@ from django.contrib import admin
 admin.autodiscover()
 
 if settings.DEBUG:
-    from staticfiles.urls import staticfiles_urlpatterns
+    from django.contrib.staticfiles.urls import staticfiles_urlpatterns
     
     urlpatterns = staticfiles_urlpatterns()
     

@@ -27,8 +27,8 @@ MEDIA_URL = '/static/media/'
 ADMIN_MEDIA_PREFIX = '/static/global/admin/'
 
 # django-staticfiles
-STATIC_ROOT = path.join(PROJECT_ROOT, 'static', 'global')
-STATIC_URL = '/static/global/'
+STATICFILES_ROOT = path.join(PROJECT_ROOT, 'static', 'global')
+STATICFILES_URL = '/static/global/'
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -85,5 +85,5 @@ INSTALLED_APPS = (
     'django_extensions',
     'debug_toolbar',
     'sentry.client',
-    'staticfiles',
+    'django.contrib.staticfiles',
 )
