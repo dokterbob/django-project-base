@@ -56,6 +56,8 @@ if DEBUG:
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)-8s %(message)s',
                         datefmt='[%d/%b/%Y %H:%M:%S]')
+                        
+    logging.getLogger('django.db.backends').setLevel(logging.WARNING)
     
     DEBUG_TOOLBAR_CONFIG = {
         'INTERCEPT_REDIRECTS' : False,
@@ -67,8 +69,12 @@ if DEBUG:
                      gethostbyname(gethostname()),)
     
     # Default to SQLite database for debugging
-    DATABASE_ENGINE = 'sqlite3'
-    DATABASE_NAME = path.join(PROJECT_ROOT, 'database.sqlite')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': path.join(PROJECT_ROOT, 'database.sqlite')
+        }
+    }
 
 INSTALLED_APPS = (
     'django.contrib.auth',
