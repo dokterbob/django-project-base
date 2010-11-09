@@ -1,6 +1,6 @@
-Django>=1.2.3
+-e svn+http://code.djangoproject.com/svn/django/trunk/#egg=Django
 django_extensions
 django_debug_toolbar
 django-staticfiles
 django-sentry
-
+-e git+ssh://salmon.dokterbob.net/var/git/django-webshop.git#egg=django-webshop
