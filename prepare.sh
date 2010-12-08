@@ -3,7 +3,6 @@
 PWD=`dirname $0`
 BASEPATH=`basename $PWD`
 
-BASH=bash
 GIT=git
 VIRTUALENV="virtualenv --distribute"
 PIP="pip --timeout 30 -q"
@@ -16,20 +15,18 @@ if [ ! -d $ENVDIR ]; then
         echo 'VirtualEnv installed allright'
     else
         echo 'Error installing VirtualEnv, breaking off'
-        exit -1
+        exit 1
     fi
     
     $VIRTUALENV $ENVDIR
 fi
         
 echo 'Installing required packages'
-pip install -E $ENVDIR -r requirements.txt
-
-if [ $? == 0 ]; then
+if pip install -E $ENVDIR -r requirements.txt; then
     echo 'That went allright, continue'
 else
-    echo 'Errro installing dependencies, breaking off'
-    exit -1
+    echo 'Error installing dependencies, breaking off'
+    exit 1
 fi
 
 if [ ! -f portnumber ]; then
@@ -58,5 +55,5 @@ fi
 
 if [ ! -f database.sqlite ]; then
     echo 'No database found, running syncdb.'
-    $BASH runserver.sh syncdb
+    ./runserver.sh syncdb
 fi
