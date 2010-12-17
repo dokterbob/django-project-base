@@ -26,9 +26,9 @@ MEDIA_URL = '/static/media/'
 # Examples: "http://foo.com/media/", "/media/".
 ADMIN_MEDIA_PREFIX = '/static/global/admin/'
 
-# django-staticfiles
-STATICFILES_ROOT = path.join(PROJECT_ROOT, 'static', 'global')
-STATICFILES_URL = '/static/global/'
+# staticfiles
+STATIC_ROOT = path.join(PROJECT_ROOT, 'static', 'global')
+STATIC_URL = '/static/global/'
 
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
