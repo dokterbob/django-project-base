@@ -30,12 +30,11 @@ ADMIN_MEDIA_PREFIX = '/static/global/admin/'
 STATIC_ROOT = path.join(PROJECT_ROOT, 'static', 'global')
 STATIC_URL = '/static/global/'
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE_CLASSES = [
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
-)
+]
 
 ROOT_URLCONF = 'urls'
 
@@ -69,7 +68,7 @@ if DEBUG:
         }
     }
 
-INSTALLED_APPS = (
+INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -79,4 +78,4 @@ INSTALLED_APPS = (
     'debug_toolbar',
     'sentry.client',
     'django.contrib.staticfiles',
-)
+]

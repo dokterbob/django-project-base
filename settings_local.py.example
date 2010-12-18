@@ -43,26 +43,36 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # CACHE_TIMEOUT = 60
 
 
-# Sentry settings
-# What should these site's errors by called in the log?
-# SENTRY_NAME = 'www.mysite.com'
-# Just one daily email
-# ADMINS = ()
-# SENTRY_ADMINS = (
-#     ('Name', 'emai'),
-# )
-# MANAGERS = SENTRY_ADMINS
+# Enable debug_toolbar
+# INSTALLED_APPS.append('debug_toolbar')
+# MIDDLEWARE_CLASSES.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+
 
 # General logging
 # No debuggin and log errors & warnings to sentry
 # import logging
 # logging.basicConfig(level=logging.WARNING,
 #                     format='%(levelname)-8s %(message)s')
-# 
-# 
+
+
+# Sentry logging
 # from sentry.client.handlers import SentryHandler
 # 
-# logging.getLogger().addHandler(SentryHandler())
+# logger = logging.getLogger()
+# # ensure we havent already registered the handler
+# if SentryHandler not in map(lambda x: x.__class__, logger.handlers):
+#     logger.addHandler(SentryHandler())
 # 
-# # Add StreamHandler to sentry's default so you can catch missed exceptions
-# logging.getLogger('sentry').addHandler(logging.StreamHandler())
+#     # Add StreamHandler to sentry's default so you can catch missed exceptions
+#     logger = logging.getLogger('sentry.errors')
+#     logger.propagate = False
+#     logger.addHandler(logging.StreamHandler())
+# 
+# What should these site's errors by called in the log?
+# SENTRY_NAME = 'www.mysite.com'
+# Just one daily email
+# ADMINS = ()
+# SENTRY_ADMINS = (
+#     ('emai'),
+# )
+# MANAGERS = SENTRY_ADMINS
