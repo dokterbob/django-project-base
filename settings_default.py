@@ -3,6 +3,10 @@ from os import path
 # Set PROJECT_ROOT to the dir of the current file
 PROJECT_ROOT = path.dirname(__file__)
 
+# DJANGO_PROJECT: the short project name
+# (defaults to the basename of PROJECT_ROOT)
+DJANGO_PROJECT = path.basename(PROJECT_ROOT.rstrip('/'))
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
