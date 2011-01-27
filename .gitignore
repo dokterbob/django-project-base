@@ -6,5 +6,6 @@
 /static/media
 portnumber
 settings_local.py
+settings_secret.py
 env
 

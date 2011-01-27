@@ -44,13 +44,18 @@ fi
 if [ ! -f settings_local.py ]; then
     echo 'No local settings file found.'
     cp -v settings_local.py.example settings_local.py
-    
+fi
+
+if [ ! -f settings_secret.py ]; then
     echo
-    echo 'Generating secret key in settings_local.py.'
+    echo 'Generating secret key in settings_secret.py.'
     SECRET_KEY=`$BASH runserver.sh generate_secret_key`
-    echo >> settings_local.py
-    echo "# Make this unique, and don't share it with anybody." >> settings_local.py
-    echo "SECRET_KEY = '$SECRET_KEY'" >> settings_local.py
+    
+    echo "# Add passwords passwords and other secrets data in this file" >> settings_secret.py
+    echo >> settings_secret.py
+    echo "# Make this unique, and don't share it with anybody." >> settings_secret.py
+    echo "SECRET_KEY = '$SECRET_KEY'" >> settings_secret.py
+    echo >> settings_secret.py
 fi
 
 if [ ! -f database.sqlite ]; then

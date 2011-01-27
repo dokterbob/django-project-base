@@ -1,4 +1,13 @@
+# Load the default settings from settings_default.py
 from settings_default import *
+
+# Attempt to load 'secret' settings, containing (ie.) passwords
+# from settings_secret.py - but fail silently if this is not possible.
+try:
+    from settings_secret import *
+except ImportError:
+    pass
+
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
