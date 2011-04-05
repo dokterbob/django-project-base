@@ -1,4 +1,4 @@
-Django>=1.2.3django_extensions
+Django<1.4
+django_extensions
 django_debug_toolbar
-django-staticfiles
 django-sentry
