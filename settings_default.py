@@ -61,8 +61,11 @@ if DEBUG:
     
     # Consider ourself as internal IP
     from socket import gethostname, gethostbyname
-    INTERNAL_IPS = ( '127.0.0.1', 
-                     gethostbyname(gethostname()),)
+    try:
+        hostname = gethostbyname(gethostname())
+        INTERNAL_IPS = ('127.0.0.1', hostname)
+    except:
+        INTERNAL_IPS = ('127.0.0.1', )
     
     # Default to SQLite database for debugging
     DATABASES = {
