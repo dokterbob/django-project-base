@@ -52,24 +52,45 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 #                     format='%(levelname)-8s %(message)s')
 
 
-# Sentry logging
-# from sentry.client.handlers import SentryHandler
-# 
-# logger = logging.getLogger()
-# # ensure we havent already registered the handler
-# if SentryHandler not in map(lambda x: x.__class__, logger.handlers):
-#     logger.addHandler(SentryHandler())
-# 
-#     # Add StreamHandler to sentry's default so you can catch missed exceptions
-#     logger = logging.getLogger('sentry.errors')
-#     logger.propagate = False
-#     logger.addHandler(logging.StreamHandler())
-# 
-# What should these site's errors by called in the log?
-# SENTRY_NAME = 'www.mysite.com'
-# Just one daily email
-# ADMINS = ()
-# SENTRY_ADMINS = (
-#     ('emai'),
-# )
-# MANAGERS = SENTRY_ADMINS
+# Sentry/Raven logging
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': True,
+#     'root': {
+#         'level': 'WARNING',
+#         'handlers': ['sentry'],
+#     },
+#     'formatters': {
+#         'verbose': {
+#             'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+#         },
+#     },
+#     'handlers': {
+#         'sentry': {
+#             'level': 'ERROR',
+#             'class': 'raven.contrib.django.handlers.SentryHandler',
+#         },
+#         'console': {
+#             'level': 'DEBUG',
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'verbose'
+#         }
+#     },
+#     'loggers': {
+#         'django.db.backends': {
+#             'level': 'ERROR',
+#             'handlers': ['console'],
+#             'propagate': False,
+#         },
+#         'raven': {
+#             'level': 'DEBUG',
+#             'handlers': ['console'],
+#             'propagate': False,
+#         },
+#         'sentry.errors': {
+#             'level': 'DEBUG',
+#             'handlers': ['console'],
+#             'propagate': False,
+#         },
+#     },
+# }
