@@ -1,28 +1,36 @@
 #!/bin/sh
 
-PWD=`dirname $0`
+# Go to current directory
+cd `dirname $0`
+
+PWD=`pwd`
 BASEPATH=`basename $PWD`
 
 GIT=git
-VIRTUALENV="virtualenv --distribute"
+VIRTUALENV="virtualenv --system-site-packages --distribute --prompt=($BASEPATH)"
 PIP="pip --timeout 30 -q"
 ENVDIR=env
 
+
+echo "Checking PIP and virtualenv availability"
+pip install 'pip>=1.1' 'virtualenv>=1.7.1.2'
+if [ $? == 0 ]; then
+    echo 'PIP and virtualenv installed allright'
+else
+    echo 'Error installing PIP and virtualenv, breaking off'
+    echo 'Please execute the following command manually, and watch for errors:'
+    echo "    pip install 'pip>=1.1' 'virtualenv>=1.7.1.2'"
+    exit 1
+fi
+
+
 if [ ! -d $ENVDIR ]; then
-    echo "Preparing virtualenv environment in $ENVDIR directory"
-    pip install virtualenv
-    if [ $? == 0 ]; then
-        echo 'VirtualEnv installed allright'
-    else
-        echo 'Error installing VirtualEnv, breaking off'
-        exit 1
-    fi
-    
+    echo "Preparing virtualenv environment in $ENVDIR directory"    
     $VIRTUALENV $ENVDIR
 fi
         
 echo 'Installing required packages'
-if pip install -E $ENVDIR -r requirements.txt; then
+if $ENVDIR/bin/pip install -r requirements.txt; then
     echo 'That went allright, continue'
 else
     echo 'Error installing dependencies, breaking off'
