@@ -16,6 +16,8 @@ if settings.DEBUG:
 else:
     urlpatterns = patterns('')
 
+handler500 = 'views.handler500'
+
 urlpatterns += patterns('',
     #(r'^/', include('foo.urls')),
 
