@@ -12,6 +12,7 @@ dependencies will be installed, from PyPI:
 
 *   django-extensions (http://github.com/django-extensions/django-extensions/)
 *   django-debug-toolbar (http://github.com/robhudson/django-debug-toolbar/)
+*   raven (http://raven.readthedocs.org/en/latest/)
 
 Usage
 -----
