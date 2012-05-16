@@ -73,4 +73,5 @@ INSTALLED_APPS = [
     'django_extensions',
     'debug_toolbar',
     'raven.contrib.django',
+    'south'
 ]
