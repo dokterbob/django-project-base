@@ -62,6 +62,10 @@ TEMPLATE_DIRS = (
     path.join(PROJECT_ROOT, 'templates')
 )
 
+# celery
+import djcelery
+djcelery.setup_loader()
+
 INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -73,5 +77,6 @@ INSTALLED_APPS = [
     'django_extensions',
     'debug_toolbar',
     'raven.contrib.django',
-    'south'
+    'south',
+    'djcelery'
 ]
