@@ -16,6 +16,21 @@ SITE_ID = 1
 # to load the internationalization machinery.
 USE_I18N = True
 
+"""
+django-staticfiles and media
+
+For staticfiles and media, the following convention is used:
+
+* '/static/media/': Application media default path
+* '/static/global/': Global static media
+* '/static/apps/<app_name>/': Static assets after running `collectstatic`
+
+The respective URL's (available only when `DEBUG=True`) are in `urls.py`.
+
+More information:
+https://docs.djangoproject.com/en/1.4/ref/contrib/staticfiles/
+"""
+
 # Absolute path to the directory that holds media.
 # Example: "/home/media/media.lawrence.com/"
 MEDIA_ROOT = path.join(PROJECT_ROOT, 'static', 'media')
@@ -25,13 +40,20 @@ MEDIA_ROOT = path.join(PROJECT_ROOT, 'static', 'media')
 # Examples: "http://media.lawrence.com", "http://example.com/media/"
 MEDIA_URL = '/static/media/'
 
-# staticfiles
 STATIC_ROOT = path.join(PROJECT_ROOT, 'static', 'apps')
 STATIC_URL = '/static/apps/'
 STATICFILES_DIRS = [
     ('global', path.join(PROJECT_ROOT, 'static', 'global')),
 ]
 
+"""
+These are basically the default values from the Django configuration, written
+as a list for easy manipulation. This way one can:
+
+1. Easily add, remove or replace elements in the list, ie. overriding.
+2. Know what the defaults are, if you want to change them right here. This
+   way you won't have to look them up everytime you want to change.
+"""
 MIDDLEWARE_CLASSES = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
