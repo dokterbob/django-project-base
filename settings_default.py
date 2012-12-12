@@ -55,6 +55,8 @@ as a list for easy manipulation. This way one can:
    way you won't have to look them up everytime you want to change.
 """
 MIDDLEWARE_CLASSES = [
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'djangosecure.middleware.SecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -90,4 +92,33 @@ INSTALLED_APPS = [
     'django_extensions',
     'debug_toolbar',
     'raven.contrib.django',
+    'djangosecure',
 ]
+
+# django-secure
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+
+# Force at least SSL for admin and accounts by default
+SECURE_SSL_REDIRECT = True
+SECURE_REDIRECT_EXEMPT = [
+    '^(?!accounts/|admin/).*'
+]
+
+SECURE_CHECKS = [
+    "djangosecure.check.csrf.check_csrf_middleware",
+    "djangosecure.check.sessions.check_session_cookie_secure",
+    "djangosecure.check.sessions.check_session_cookie_httponly",
+    "djangosecure.check.djangosecure.check_security_middleware",
+    # We are not serving only SSL
+    # "djangosecure.check.djangosecure.check_sts",
+    # We are using Django's X_FRAME_OPTIONS
+    # "djangosecure.check.djangosecure.check_frame_deny",
+    "djangosecure.check.djangosecure.check_content_type_nosniff",
+    "djangosecure.check.djangosecure.check_xss_filter",
+    "djangosecure.check.djangosecure.check_ssl_redirect",
+]
+
+# Django security settings
+SESSION_COOKIE_SECURE = True
+X_FRAME_OPTIONS = 'DENY'
