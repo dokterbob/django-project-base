@@ -67,6 +67,7 @@ if [ ! -f settings_secret.py ]; then
 fi
 
 if [ ! -f database.sqlite ]; then
-    echo 'No database found, running syncdb.'
+    echo 'No database found, running syncdb and migrate.'
     ./runserver.sh syncdb
+    ./runserver.sh migrate
 fi
