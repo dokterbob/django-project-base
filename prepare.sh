@@ -25,10 +25,10 @@ fi
 
 
 if [ ! -d $ENVDIR ]; then
-    echo "Preparing virtualenv environment in $ENVDIR directory"    
+    echo "Preparing virtualenv environment in $ENVDIR directory"
     $VIRTUALENV $ENVDIR
 fi
-        
+
 echo 'Installing required packages'
 if $ENVDIR/bin/pip install -r requirements.txt; then
     echo 'That went allright, continue'
@@ -45,7 +45,7 @@ if [ ! -f portnumber ]; then
         echo "Setting default port number to: $PORTNUMBER"
         echo
     done
-    
+
     echo $PORTNUMBER > portnumber
 fi
 
@@ -58,7 +58,7 @@ if [ ! -f settings_secret.py ]; then
     echo
     echo 'Generating secret key in settings_secret.py.'
     SECRET_KEY=`$BASH runserver.sh generate_secret_key`
-    
+
     echo "# Add passwords passwords and other secrets data in this file" >> settings_secret.py
     echo >> settings_secret.py
     echo "# Make this unique, and don't share it with anybody." >> settings_secret.py
@@ -68,6 +68,5 @@ fi
 
 if [ ! -f database.sqlite ]; then
     echo 'No database found, running syncdb and migrate.'
-    ./runserver.sh syncdb
-    ./runserver.sh migrate
+    ./runserver.sh syncdb --migrate
 fi
