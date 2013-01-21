@@ -16,6 +16,24 @@ SITE_ID = 1
 # to load the internationalization machinery.
 USE_I18N = True
 
+# Local time zone for this installation. Choices can be found here:
+# http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
+# although not all choices may be available on all operating systems.
+# If running in a Windows environment this must be set to the same as your
+# system time zone.
+TIME_ZONE = 'Europe/Amsterdam'
+
+# Language code for this installation. All choices can be found here:
+# http://www.i18nguy.com/unicode/language-identifiers.html
+LANGUAGE_CODE = 'nl'
+
+gettext = lambda s: s
+
+LANGUAGES = (
+    ('nl', gettext('Dutch')),
+    ('en', gettext('English')),
+)
+
 """
 django-staticfiles and media
 
