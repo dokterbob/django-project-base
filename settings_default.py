@@ -7,6 +7,8 @@ PROJECT_ROOT = path.dirname(__file__)
 # (defaults to the basename of PROJECT_ROOT)
 DJANGO_PROJECT = path.basename(PROJECT_ROOT.rstrip('/'))
 
+FIXTURE_DIRS = (path.join(PROJECT_ROOT, 'fixtures'),)
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
