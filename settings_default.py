@@ -141,5 +141,5 @@ SECURE_CHECKS = [
 ]
 
 # Django security settings
-SESSION_COOKIE_SECURE = True
+# SESSION_COOKIE_SECURE = True
 X_FRAME_OPTIONS = 'DENY'

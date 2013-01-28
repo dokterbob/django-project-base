@@ -53,6 +53,8 @@ else:
     logging.basicConfig(level=logging.WARNING,
                         format='%(levelname)-8s %(message)s')
 
+    SESSION_COOKIE_SECURE = False
+
 
 # DATABASES = {
 #     'default': {
