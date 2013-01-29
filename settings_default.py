@@ -120,19 +120,13 @@ INSTALLED_APPS = [
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 
-# Force at least SSL for admin and accounts by default
 SECURE_SSL_REDIRECT = True
-SECURE_REDIRECT_EXEMPT = [
-    '^(?!accounts/|admin/).*'
-]
 
 SECURE_CHECKS = [
     "djangosecure.check.csrf.check_csrf_middleware",
     "djangosecure.check.sessions.check_session_cookie_secure",
     "djangosecure.check.sessions.check_session_cookie_httponly",
     "djangosecure.check.djangosecure.check_security_middleware",
-    # We are not serving only SSL
-    # "djangosecure.check.djangosecure.check_sts",
     # We are using Django's X_FRAME_OPTIONS
     # "djangosecure.check.djangosecure.check_frame_deny",
     "djangosecure.check.djangosecure.check_content_type_nosniff",
@@ -140,6 +134,28 @@ SECURE_CHECKS = [
     "djangosecure.check.djangosecure.check_ssl_redirect",
 ]
 
-# Django security settings
-# SESSION_COOKIE_SECURE = True
+# Whether or not SSL is required for accessing this site
+SSL_DEFAULT = False
+
+if SSL_DEFAULT:
+    SECURE_CHECKS.append("djangosecure.check.djangosecure.check_sts")
+
+    # 12 months for HSTS
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+    SESSION_COOKIE_SECURE = True
+else:
+    # If not SSL default, force at least SSL for admin and accounts by default
+    SECURE_REDIRECT_EXEMPT = [
+        '^(?!accounts/|admin/).*'
+    ]
+
+    SESSION_COOKIE_SECURE = False
+
+# Don't expose session cookie to JS
+SESSION_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = 'DENY'
+
+# Default for Lighttpd
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
