@@ -112,7 +112,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_extensions',
     'debug_toolbar',
-    'raven.contrib.django',
+    'raven.contrib.django.raven_compat',
     'south',
     'djangosecure',
 ]
