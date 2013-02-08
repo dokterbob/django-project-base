@@ -75,6 +75,7 @@ as a list for easy manipulation. This way one can:
    way you won't have to look them up everytime you want to change.
 """
 MIDDLEWARE_CLASSES = [
+    'raven.contrib.django.raven_compat.middleware.SentryResponseErrorIdMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'djangosecure.middleware.SecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
