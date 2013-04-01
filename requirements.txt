@@ -4,3 +4,7 @@ django_debug_toolbar
 raven
 South
 django-secure
+django-tinymce
+-e git+http://github.com/dokterbob/django-metadata.git#egg=django-metadata
+-e git+http://github.com/dokterbob/django-multilingual-model.git#egg=django-multilingual-model
+-e git+http://github.com/dokterbob/django-simplesite.git@multilingual-model#egg=django-simplesite

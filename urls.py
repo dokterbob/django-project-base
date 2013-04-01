@@ -7,6 +7,15 @@ admin.autodiscover()
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.conf.urls.static import static
 
+# Sitemaps
+from simplesite import sitemaps as simplesite_sitemaps
+
+sitemaps = {
+    'menu': simplesite_sitemaps.MenuSitemap,
+    'submenu': simplesite_sitemaps.SubmenuSitemap,
+    'pages': simplesite_sitemaps.PageSitemap
+}
+
 
 # Serve django-staticfiles (only works in DEBUG)
 urlpatterns = staticfiles_urlpatterns()
@@ -14,11 +23,13 @@ urlpatterns = staticfiles_urlpatterns()
 # Serve media files (only works in DEBUG)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-
+# 500 handler
 handler500 = 'views.handler500'
 
 urlpatterns += patterns('',
     #(r'^/', include('foo.urls')),
+    # Sitemaps
+    (r'^sitemap\.xml$', 'django.contrib.sitemaps.views.sitemap', {'sitemaps': sitemaps}),
 
     # Django Admin, docs and password reset
     url(r'^admin/password_reset/$', 'django.contrib.auth.views.password_reset', name='admin_password_reset'),

@@ -82,6 +82,7 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'simplesite.middleware.SimplesiteFallbackMiddleware',
 ]
 
 TEMPLATE_CONTEXT_PROCESSORS = [
@@ -93,6 +94,7 @@ TEMPLATE_CONTEXT_PROCESSORS = [
     'django.core.context_processors.static',
     # 'django.core.context_processors.tz',
     'django.contrib.messages.context_processors.messages',
+    'simplesite.context_processors.menu',
 ]
 
 ROOT_URLCONF = 'urls'
@@ -114,6 +116,10 @@ INSTALLED_APPS = [
     'raven.contrib.django',
     'south',
     'djangosecure',
+    'tinymce',
+    'metadata',
+    'multilingual_model',
+    'simplesite',
 ]
 
 # django-secure
@@ -159,3 +165,13 @@ X_FRAME_OPTIONS = 'DENY'
 
 # Default for Lighttpd
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Simplesite fallback ignore URL's
+import re
+SIMPLESITE_IGNORE_PATHS = (
+    re.compile('^/admin/'),
+    re.compile('^/robots.txt$'),
+    re.compile('^/favicon.ico$'),
+    re.compile('^/__debug__/'),
+    re.compile('^/sitemap\.xml$'),
+)
