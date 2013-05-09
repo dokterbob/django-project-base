@@ -48,12 +48,13 @@ if DEBUG:
     # Don't force SSL in DEBUG
     SECURE_SSL_REDIRECT = False
 
+    # And cookies need not be secure
+    SESSION_COOKIE_SECURE = False
+
 else:
     # No debuggin and log errors & warnings to sentry
     logging.basicConfig(level=logging.WARNING,
                         format='%(levelname)-8s %(message)s')
-
-    SESSION_COOKIE_SECURE = False
 
 
 # DATABASES = {
