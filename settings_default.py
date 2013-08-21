@@ -41,14 +41,14 @@ django-staticfiles and media
 
 For staticfiles and media, the following convention is used:
 
-* '/static/media/': Application media default path
-* '/static/global/': Global static media
-* '/static/apps/<app_name>/': Static assets after running `collectstatic`
+* '/static/media/': Uploaded media from <project_root>/static/media/
+* '/static/assets/global/': Global static assets from <project_root>/static/global/
+* '/static/assets/<app_name>/': App-specific assets from <app_root>/static/<app_name>/
 
 The respective URL's (available only when `DEBUG=True`) are in `urls.py`.
 
 More information:
-https://docs.djangoproject.com/en/1.4/ref/contrib/staticfiles/
+https://docs.djangoproject.com/en/1.5/ref/contrib/staticfiles/
 """
 
 # Absolute path to the directory that holds media.
@@ -60,8 +60,8 @@ MEDIA_ROOT = path.join(PROJECT_ROOT, 'static', 'media')
 # Examples: "http://media.lawrence.com", "http://example.com/media/"
 MEDIA_URL = '/static/media/'
 
-STATIC_ROOT = path.join(PROJECT_ROOT, 'static', 'apps')
-STATIC_URL = '/static/apps/'
+STATIC_ROOT = path.join(PROJECT_ROOT, 'static', 'assets')
+STATIC_URL = '/static/assets/'
 STATICFILES_DIRS = [
     ('global', path.join(PROJECT_ROOT, 'static', 'global')),
 ]
