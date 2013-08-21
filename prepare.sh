@@ -57,7 +57,8 @@ fi
 if [ ! -f settings_secret.py ]; then
     echo
     echo 'Generating secret key in settings_secret.py.'
-    SECRET_KEY=`$BASH runserver.sh generate_secret_key`
+    # Ref: https://build.opensuse.org/package/view_file?file=fix-initscript.dif&package=cobbler&project=systemsmanagement
+    SECRET_KEY=$(openssl rand -base64 42 | sed 's/\//\\\//g')
 
     echo "# Add passwords passwords and other secrets data in this file" >> settings_secret.py
     echo >> settings_secret.py
