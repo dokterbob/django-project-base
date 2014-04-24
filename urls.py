@@ -27,7 +27,11 @@ urlpatterns += patterns('',
     (r'^admin/', include(admin.site.urls)),
 
     # Password reset
-    (r'^accounts/reset/(?P<uidb36>[0-9A-Za-z]+)-(?P<token>.+)/$', 'django.contrib.auth.views.password_reset_confirm'),
-    (r'^accounts/reset/done/$', 'django.contrib.auth.views.password_reset_complete')
+    url(r'^accounts/reset/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>.+)/$',
+        'django.contrib.auth.views.password_reset_confirm',
+        name='password_reset_confirm'),
+    url(r'^accounts/reset/done/$',
+        'django.contrib.auth.views.password_reset_complete',
+        name='password_reset_done')
 )
 
